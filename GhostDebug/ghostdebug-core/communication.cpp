@@ -22,16 +22,17 @@ namespace communication
 		{
 			case EVENT_CODE::ADD_BREAKPOINT:
 			case EVENT_CODE::REMOVE_BREAKPOINT:
-
+			{
 				auto& data = event["data"];
 				uintptr_t address = data["address"];
-				
-				if(code == EVENT_CODE::ADD_BREAKPOINT)
+
+				if (code == EVENT_CODE::ADD_BREAKPOINT)
 					debugger::add_breakpoint(address);
 				else
 					debugger::remove_breakpoint(address);
 
 				break;
+			}
 			case EVENT_CODE::PAUSE:
 				break;
 			case EVENT_CODE::RESUME:
@@ -58,6 +59,6 @@ namespace communication
 	void start_listening()
 	{
 		// Create a thread that listens for messages
-		std::thread listener(listen_thread);
+		std::thread(listen_thread).detach();
 	}
 }

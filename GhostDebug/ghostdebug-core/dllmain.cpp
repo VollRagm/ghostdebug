@@ -3,22 +3,26 @@
 #include "communication.hpp"
 #include "pipe.hpp"
 
-void open_console()
-{
-	AllocConsole();
-	FILE* fp;
-	freopen_s(&fp, "CONOUT$", "w", stdout);
-	freopen_s(&fp, "CONIN$", "r", stdin);
-}
-
 void attach_debugger()
 {
-    // for testing purposes
-    open_console();
+    LOG("GhostDebug attached");
 
-    pipe::create("ghostdebug");
+    bool success = pipe::create("\\\\.\\pipe\\ghostdebug") != INVALID_HANDLE_VALUE;
+
+    if (!success)
+    {
+        LOG("Failed to create pipe!");
+        return;
+    }
+
     communication::start_listening();
-	debugger::init();
+
+    LOG("Initialized communication!");
+
+	success = debugger::init();
+
+    if(!success)
+		LOG("Failed to initialize VEH handler!");
 }
 
 BOOL APIENTRY DllMain( HMODULE hModule,
@@ -29,6 +33,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
+        attach_debugger();
+		break;
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:
     case DLL_PROCESS_DETACH:

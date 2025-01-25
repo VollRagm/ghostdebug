@@ -13,14 +13,24 @@ namespace pipe
 			1, 1024 * 16, 1024, NMPWAIT_USE_DEFAULT_WAIT, nullptr);
 
 		if (hp == INVALID_HANDLE_VALUE)
-			return INVALID_HANDLE_VALUE;
-
-		bool success = ConnectNamedPipe(hp, nullptr);
-		if (!success)
 		{
-			CloseHandle(hp);
+			LOG("Failed to create pipe server: %d", GetLastError());
 			return INVALID_HANDLE_VALUE;
 		}
+			
+
+		if (!ConnectNamedPipe(hp, nullptr))
+		{
+			DWORD error = GetLastError();
+			if (error != ERROR_PIPE_CONNECTED)
+			{
+				LOG("Failed to connect to pipe server: %d", error);
+				CloseHandle(hp);
+				return INVALID_HANDLE_VALUE;
+			}
+		}
+
+		LOG("Pipe server created!");
 
 		hPipe = hp;
 		return hp;

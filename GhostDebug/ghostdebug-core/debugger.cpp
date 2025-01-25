@@ -40,6 +40,7 @@ namespace debugger
 	// Central exception handler
 	LONG WINAPI exception_handler(EXCEPTION_POINTERS* exception_info)
 	{
+		MessageBoxA(NULL, "Exception", "Exception", MB_OK);
 		if (exception_info->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
 		{
 			// Check if the breakpoint is in our list
@@ -49,6 +50,15 @@ namespace debugger
 				breakpoints[(uintptr_t)exception_info->ExceptionRecord->ExceptionAddress].disable();
 
 				std::cout << "Breakpoint hit at: " << std::hex << exception_info->ExceptionRecord->ExceptionAddress << std::endl;
+
+				// dump out the registers
+				std::cout << "RAX: " << std::hex << exception_info->ContextRecord->Rax << std::endl;
+				std::cout << "RBX: " << std::hex << exception_info->ContextRecord->Rbx << std::endl;
+				std::cout << "RCX: " << std::hex << exception_info->ContextRecord->Rcx << std::endl;
+				std::cout << "RDX: " << std::hex << exception_info->ContextRecord->Rdx << std::endl;
+				std::cout << "R8: " << std::hex << exception_info->ContextRecord->R8 << std::endl;
+				std::cout << "R9: " << std::hex << exception_info->ContextRecord->R9 << std::endl;
+				std::cout << "R10: " << std::hex << exception_info->ContextRecord->R10 << std::endl;
 
 				// Continue the program
 				exception_info->ContextRecord->Rip = (DWORD64)exception_info->ExceptionRecord->ExceptionAddress;
@@ -61,15 +71,16 @@ namespace debugger
 		return EXCEPTION_CONTINUE_SEARCH;
 	}
 
-	void init()
+	bool init()
 	{
 		// Catch all exceptions
-		AddVectoredExceptionHandler(1, exception_handler);
+		return AddVectoredExceptionHandler(1, exception_handler) != NULL;
 	}
 
 	void add_breakpoint(uintptr_t address)
 	{
 		breakpoints[address] = breakpoint(address);
+		breakpoints[address].enable();
 	}
 
 	void remove_breakpoint(uintptr_t address)
