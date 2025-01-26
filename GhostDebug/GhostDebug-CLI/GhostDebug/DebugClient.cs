@@ -51,7 +51,7 @@ namespace GhostConnect
             return true;
         }
 
-        public async Task<bool> RunCommand(string command) 
+        public async Task<string> RunCommand(string command) 
             => await commandParser.Parse(command);
 
         public async Task<bool> SetUnsetBreakpoint(string location, bool enable)
@@ -62,7 +62,7 @@ namespace GhostConnect
 
             // breakpoint already in the state requested
             if (isBreakpointActive == enable)
-                return false;
+                return true;
 
             var dataPacket = new DebugEvent()
             {

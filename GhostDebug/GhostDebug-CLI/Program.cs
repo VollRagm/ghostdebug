@@ -1,6 +1,7 @@
 ﻿using GhostConnect;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 
 namespace GhostDebug
@@ -15,7 +16,7 @@ namespace GhostDebug
             Process.GetProcessesByName("TestTarget").ToList().ForEach(p => p.Kill());
 
             
-            var suggestedPid = Process.Start("C:\\Users\\vr\\Documents\\Visual Studio 2022\\Projects\\ghostdebug\\GhostDebug\\x64\\Release\\TestTarget.exe").Id;
+            var suggestedPid = Process.Start(Path.GetFullPath("..\\..\\..\\x64\\Release\\TestTarget.exe")).Id;
             Console.WriteLine($"Suggested PID for testing: {suggestedPid}");
             
 
@@ -23,9 +24,8 @@ namespace GhostDebug
             {
                 Console.Write("> ");
                 string command = Console.ReadLine();
-                Console.WriteLine();
                 var result = debugClient.RunCommand(command).Result;
-                Console.WriteLine(result ? "" : "Unable to parse \"" + command +"\"");
+                Console.WriteLine(result == "" ? result + "\n" : "");
             }
         }
     }

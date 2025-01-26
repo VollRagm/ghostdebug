@@ -72,7 +72,7 @@ namespace GhostDebug.Internal
 
         
 
-        public async Task<bool> Parse(string command)
+        public async Task<string> Parse(string command)
         {
             string[] parts = command.Split(' ');
             string cmd = parts[0].ToLower();
@@ -81,19 +81,45 @@ namespace GhostDebug.Internal
             {
                 case "attach":
                     if (parts.Length < 2)
-                        return false;
+                        return "Usage: attach <pid>";
 
                     int pid = int.Parse(parts[1]);
-                    return debugClient.Attach(pid);
+                    if(!debugClient.Attach(pid))
+                        return "Unable to attach to target.";
+
+                    return "";
 
                 case "bp":
-                    return await debugClient.SetUnsetBreakpoint(parts[1], true);
 
-                case "ubp":
-                    return await debugClient.SetUnsetBreakpoint(parts[1], false);
+                    if(parts.Length < 2)
+                        return "Usage: bp <symbol/address>";
 
+                     if(!await debugClient.SetUnsetBreakpoint(parts[1], true))
+                        return "Unable to set breakpoint.";
+                    return "";
+
+                case "cl":
+                    if (parts.Length < 2)
+                        return "Usage: cl <symbol/address>";
+
+                    if (!await debugClient.SetUnsetBreakpoint(parts[1], false))
+                        return "Unable to clear breakpoint.";
+                    return "";
+
+                case "help":
+                    return "Commands:\n" +
+                        "attach <pid> - Attach to a process\n" +
+                        "bp <symbol/address> - Set a breakpoint\n" +
+                        "cl <symbol/address> - Clear a breakpoint\n" +
+                        "help - Display this message" +
+                        "\n\n" +
+                        "Info: Addresses can be provided as absolute addresses, or:\n" +
+                        "Relative from main module: +1234FFFF\n" +
+                        "Relative from module: ntdll+1234FFFF\n" +
+                        "Symbol in main module: !my_func\n" +
+                        "Symbol in module: kernel32!ExitProcess";
                 default:
-                    return false;
+                    return cmd + " is not a valid command. Type help for a list of commands.";
             }
             
         }

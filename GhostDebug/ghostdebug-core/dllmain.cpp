@@ -21,8 +21,12 @@ void attach_debugger()
 
 	success = debugger::init();
 
-    if(!success)
-		LOG("Failed to initialize VEH handler!");
+    if (!success)
+    {
+        LOG("Failed to initialize VEH handler!");
+        return;
+    }
+    LOG("Debugger attached!");
 }
 
 BOOL APIENTRY DllMain( HMODULE hModule,
