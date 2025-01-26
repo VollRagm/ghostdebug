@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <Windows.h>
-
+#include "detection.hpp"
 
 int debug_this(uint64_t arg1, uint64_t arg2)
 {
@@ -16,6 +16,10 @@ int main()
 	std::cout << "Address of debug_this: " << std::hex << (void*)debug_this << std::endl;
 
 	// wait for debugger
+	std::cin.get();
+
+	detection::CheckAll();
+
 	std::cin.get();
 
 	// Compiler optimizations must be disabled for this to be called
