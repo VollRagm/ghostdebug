@@ -24,14 +24,11 @@ namespace communication
 			case EVENT_CODE::PAUSE:
 				break;
 			case EVENT_CODE::RESUME:
-
+			case EVENT_CODE::STEP_INTO:
 				debugger::continue_execution((debugger::DEBUG_ACTION)code);
-
 				break;
-			case EVENT_CODE::STEP_IN:
-				break;
+			
 			case EVENT_CODE::STEP_OVER:
-				debugger::continue_execution((debugger::DEBUG_ACTION)code);
 				break;
 
 			case EVENT_CODE::REGISTER_WRITE:

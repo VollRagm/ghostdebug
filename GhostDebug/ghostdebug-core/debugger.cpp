@@ -42,230 +42,243 @@ struct register_write_cmd
 
 namespace debugger
 {
-	std::unordered_map<uintptr_t, std::shared_ptr<breakpoint>> breakpoints;
+    std::unordered_map<uintptr_t, std::shared_ptr<breakpoint>> breakpoints;
+    std::mutex breakpoint_mutex;
+    std::condition_variable resume_cv;
+    DEBUG_ACTION user_action = DEBUG_ACTION::NONE;
+    bool breakpoint_hit = false;
 
-	std::mutex breakpoint_mutex;
-	std::condition_variable resume_cv;
-	DEBUG_ACTION user_action = DEBUG_ACTION::NONE;
-	bool breakpoint_hit = false;
+    std::unordered_map<DWORD, std::shared_ptr<breakpoint>> thread_restore_breakpoints;
+    std::mutex thread_restore_mutex;
 
-	std::unordered_map<DWORD, std::shared_ptr<breakpoint>> thread_restore_breakpoints;
-	std::mutex thread_restore_mutex;
+    std::unordered_map<DWORD, bool> thread_single_step;
+    std::mutex single_step_mutex;
 
-	std::unordered_map<DWORD, bool> thread_single_step;
-	std::mutex single_step_mutex;
+    std::vector<register_write_cmd> register_write_queue;
 
-	std::vector <register_write_cmd> register_write_queue;
-	
-	void apply_register_writes(CONTEXT* ctx)
-	{
-		for (register_write_cmd& cmd : register_write_queue)
-		{
-			auto reg = cmd.reg;
-			ctx->*reg = cmd.value;
-		}
-	}
+    // apply_register_writes applies any register modifications
+    // queued by add_register_write before continuing the thread.
+    void apply_register_writes(CONTEXT* ctx)
+    {
+        for (auto& cmd : register_write_queue)
+        {
+            ctx->*(cmd.reg) = cmd.value;
+        }
+    }
 
-	LONG single_step_handler(EXCEPTION_POINTERS* exception_info, DWORD thread_id)
-	{
-		CONTEXT* ctx = exception_info->ContextRecord;
-		std::unique_lock<std::mutex> lock(single_step_mutex);
-		if (thread_single_step.find(thread_id) != thread_single_step.end())
-		{
-			if (thread_single_step[thread_id])
-			{
-				// this thread is in single step mode
-				communication::breakpoint_callback(exception_info);
-				breakpoint_hit = true;
+    // The caller must hold a lock before calling this function.
+    template <typename LockType>
+    DEBUG_ACTION wait_for_debug_action(EXCEPTION_POINTERS* exception_info, CONTEXT* ctx, LockType& lock)
+    {
+        // send context to client
+        communication::breakpoint_callback(exception_info);
+        breakpoint_hit = true;
 
-				resume_cv.wait(lock, [] { return user_action != DEBUG_ACTION::NONE; });
+        // wait for user to pick an action
+        resume_cv.wait(lock, [] { return user_action != DEBUG_ACTION::NONE; });
 
-				auto action = user_action;
-				user_action = DEBUG_ACTION::NONE;
+        // store then clear user_action
+        auto action = user_action;
+        user_action = DEBUG_ACTION::NONE;
+        breakpoint_hit = false;
 
-				breakpoint_hit = false;
+        // apply queued register writes
+        apply_register_writes(ctx);
 
-				apply_register_writes(ctx);
+        return action;
+    }
 
-				// handle user action
-				switch (action)
-				{
-				case DEBUG_ACTION::RESUME:
-				{
-					thread_single_step[thread_id] = false;
-					CLEAR_STEP_FLAG(ctx); // Resume normal execution
+    LONG handle_single_step(EXCEPTION_POINTERS* exception_info, DWORD thread_id)
+    {
+        CONTEXT* ctx = exception_info->ContextRecord;
 
-					return EXCEPTION_CONTINUE_EXECUTION;
-				}
-				case DEBUG_ACTION::STEP_OVER:
-				{
-					SET_STEP_FLAG(ctx); // Set the single step flag to restore int3 next instruction
-					return EXCEPTION_CONTINUE_EXECUTION;
-				}
-				case DEBUG_ACTION::STEP_IN:
-					break;
-				case DEBUG_ACTION::STEP_OUT:
-					break;
-				}
+        {
+            // check if this thread has a stored step-over breakpoint
+            std::lock_guard<std::mutex> step_lock(thread_restore_mutex);
 
-				return EXCEPTION_CONTINUE_EXECUTION;
-			}
-		}
-	}
+            auto it = thread_restore_breakpoints.find(thread_id);
+            if (it != thread_restore_breakpoints.end())
+            {
+                // check if we have a breakpoint to restore
+                auto bp = it->second;
+                bp->enable();
 
-	// Central exception handler
-	// anything that triggers an exception (MessageBox, OutputDebugString, etc) 
-	// must be treated with caution here to avoid infinite loops
-	LONG WINAPI exception_handler(EXCEPTION_POINTERS* exception_info)
-	{
-		DWORD thread_id = GetCurrentThreadId();
-		uintptr_t exception_address = (uintptr_t)exception_info->ExceptionRecord->ExceptionAddress;
-		CONTEXT* ctx = exception_info->ContextRecord;
+                // if single_step is set, we continue single stepping;
+                // otherwise, we clear it
+                if (bp->single_step)
+                {
+                    // breakpoint has been restored, so no need to keep single_step flag on the bp
+                    bp->single_step = false;
+                    SET_STEP_FLAG(ctx);           // Set the single step flag to restore int3 next instruction
+                    thread_single_step[thread_id] = true;
+                }
+                else
+                {
+                    CLEAR_STEP_FLAG(ctx);
+                    thread_restore_breakpoints.erase(it);
+                    return EXCEPTION_CONTINUE_EXECUTION;
+                }
 
-		if (exception_info->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
-		{
-			// Check if the breakpoint is in our list
-			if (breakpoints.find(exception_address) != breakpoints.end())
-			{
-				std::unique_lock<std::mutex> lock(breakpoint_mutex);
-				auto bp = breakpoints[exception_address];
+                thread_restore_breakpoints.erase(it);
+            }
+        }
 
-				// disable breakpoint to allow inspection without int3
-				bp->disable();
+        // if the thread is in single step mode, handle the callback/wait logic.
+        std::unique_lock<std::mutex> lock(single_step_mutex);
+        auto single_step_iter = thread_single_step.find(thread_id);
 
-				// send context to client
-				communication::breakpoint_callback(exception_info);
-				breakpoint_hit = true;
+        // this thread is in single step mode
+        if (single_step_iter != thread_single_step.end() && single_step_iter->second)
+        {
+            auto action = wait_for_debug_action(exception_info, ctx, lock);
 
-				resume_cv.wait(lock, [] { return user_action != DEBUG_ACTION::NONE; });
+            // handle user action
+            switch (action)
+            {
+            case DEBUG_ACTION::RESUME:
+            {
+                thread_single_step[thread_id] = false;
+                CLEAR_STEP_FLAG(ctx); // Resume normal execution
+                return EXCEPTION_CONTINUE_EXECUTION;
+            }
+            case DEBUG_ACTION::STEP_INTO:
+            {
+                SET_STEP_FLAG(ctx); // Set single step flag to restore int3 next instruction
+                return EXCEPTION_CONTINUE_EXECUTION;
+            }
+            case DEBUG_ACTION::STEP_OVER:
+                break;
+            case DEBUG_ACTION::STEP_OUT:
+                break;
+            }
+            return EXCEPTION_CONTINUE_EXECUTION;
+        }
 
-				// re-enable breakpoint when inspection is complete
-				bp->enable();
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
 
-				auto action = user_action;
-				user_action = DEBUG_ACTION::NONE;
+    // Central exception handler
+    // anything that triggers an exception (MessageBox, OutputDebugString, etc)
+    // must be treated with caution here to avoid infinite loops
+    LONG WINAPI exception_handler(EXCEPTION_POINTERS* exception_info)
+    {
+        DWORD thread_id = GetCurrentThreadId();
+        uintptr_t exception_address = (uintptr_t)exception_info->ExceptionRecord->ExceptionAddress;
+        CONTEXT* ctx = exception_info->ContextRecord;
 
-				breakpoint_hit = false;
+        // Check if it's an INT3
+        if (exception_info->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
+        {
+            // Check if the breakpoint is in our list
+            auto bp_it = breakpoints.find(exception_address);
+            if (bp_it != breakpoints.end())
+            {
+                std::unique_lock<std::mutex> lock(breakpoint_mutex);
+                auto bp = bp_it->second;
 
-				apply_register_writes(ctx);
+                // disable breakpoint to allow inspection without int3
+                bp->disable();
 
-				// handle user action
-				switch (action)
-				{
-					case DEBUG_ACTION::RESUME:
-					{
-						bp->disable();
+                // call our unified wait function (callback->wait->apply_register_writes)
+                auto action = wait_for_debug_action(exception_info, ctx, lock);
 
-						// Relate the current breakpoint to this thread to restore the int3 in the single step
-						std::lock_guard<std::mutex> step_over_lock(thread_restore_mutex);
-						thread_restore_breakpoints[thread_id] = bp;
-						
-						bp->single_step = false;
-						thread_single_step[thread_id] = false;
-						
-						ctx->Rip = exception_address; // Reset execution to original breakpoint address
-						SET_STEP_FLAG(ctx); // Set the single step flag to restore int3 next instruction
+                // re-enable breakpoint when inspection is complete
+                bp->enable();
 
-						return EXCEPTION_CONTINUE_EXECUTION;
-					}
-					case DEBUG_ACTION::STEP_OVER:
-					{
-						bp->disable();
-						bp->single_step = true;
-						// Relate the current breakpoint to this thread to restore the int3 in the single step
-						std::lock_guard<std::mutex> step_over_lock(thread_restore_mutex);
-						
-						thread_restore_breakpoints[thread_id] = bp;
-						
-						ctx->Rip = exception_address; // Reset execution to original breakpoint address
-						SET_STEP_FLAG(ctx); // Set the single step flag to restore int3 next instruction
+                // handle user action
+                switch (action)
+                {
+                case DEBUG_ACTION::RESUME:
+                {
+                    bp->disable();
 
-						return EXCEPTION_CONTINUE_EXECUTION;
-					}
-					case DEBUG_ACTION::STEP_IN:
-						break;
-					case DEBUG_ACTION::STEP_OUT:
-						break;
-				}
+                    // relate the current breakpoint to this thread to restore the int3 in the single step
+                    {
+                        std::lock_guard<std::mutex> step_over_lock(thread_restore_mutex);
+                        thread_restore_breakpoints[thread_id] = bp;
+                    }
 
-				return EXCEPTION_CONTINUE_EXECUTION;
-			}
-		}
+                    bp->single_step = false;
+                    thread_single_step[thread_id] = false;
 
-		if (exception_info->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP)
-		{
-			{
-				std::lock_guard<std::mutex> step_lock(thread_restore_mutex);
+                    // Reset execution to original breakpoint address
+                    ctx->Rip = exception_address;
+                    // Set the single step flag to restore int3 next instruction
+                    SET_STEP_FLAG(ctx);
 
-				// check if this thread has a stored step-over breakpoint
-				auto it = thread_restore_breakpoints.find(thread_id);
-				if (it != thread_restore_breakpoints.end())
-				{
-					auto bp = thread_restore_breakpoints[thread_id];
-					bp->enable();
+                    return EXCEPTION_CONTINUE_EXECUTION;
+                }
+                case DEBUG_ACTION::STEP_INTO:
+                {
+                    bp->disable();
+                    bp->single_step = true;
 
-					if (bp->single_step)
-					{
-						// breakpoint has been restored, so no need to single step anymore
-						bp->single_step = false;
-						SET_STEP_FLAG(ctx); // Set the single step flag to restore int3 next instruction
-						thread_single_step[thread_id] = true;
-						single_step_handler(exception_info, thread_id);
+                    // relate the current breakpoint to this thread to restore the int3 in the single step
+                    {
+                        std::lock_guard<std::mutex> step_over_lock(thread_restore_mutex);
+                        thread_restore_breakpoints[thread_id] = bp;
+                    }
 
-					}
-					else
-					{
-						CLEAR_STEP_FLAG(ctx);
-					}
-					thread_restore_breakpoints.erase(it); // we can clear this now
-					return EXCEPTION_CONTINUE_EXECUTION;
-				}
-			}
-			single_step_handler(exception_info, thread_id);
+                    ctx->Rip = exception_address; // Reset execution to original breakpoint address
+                    SET_STEP_FLAG(ctx);           // Set the single step flag to restore int3 next instruction
+                    return EXCEPTION_CONTINUE_EXECUTION;
+                }
+                case DEBUG_ACTION::STEP_OVER:
+                    break;
+                case DEBUG_ACTION::STEP_OUT:
+                    break;
+                }
+                return EXCEPTION_CONTINUE_EXECUTION;
+            }
+        }
 
-			return EXCEPTION_CONTINUE_EXECUTION;
-		}
+        // Check if it's a single step
+        if (exception_info->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP)
+            return handle_single_step(exception_info, thread_id);
 
-		return EXCEPTION_CONTINUE_SEARCH;
-	}
+        // otherwise, not handled by us
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
 
-	bool init()
-	{
-		// Catch all exceptions
-		return AddVectoredExceptionHandler(1, exception_handler) != NULL;
-	}
+    // Catch all exceptions
+    bool init()
+    {
+        return AddVectoredExceptionHandler(1, exception_handler) != NULL;
+    }
 
-	void add_breakpoint(uintptr_t address)
-	{
-		breakpoints[address] = std::make_shared<breakpoint>(address);
-		breakpoints[address]->enable();
-	}
+    void add_breakpoint(uintptr_t address)
+    {
+        auto bp = std::make_shared<breakpoint>(address);
+        breakpoints[address] = bp;
+        bp->enable();
+    }
 
-	void remove_breakpoint(uintptr_t address)
-	{
-		// check if breakpoint exists
-		if (breakpoints.find(address) == breakpoints.end())
-			return;
+    void remove_breakpoint(uintptr_t address)
+    {
+        // check if breakpoint exists
+        auto it = breakpoints.find(address);
+        if (it == breakpoints.end())
+            return;
 
-		breakpoints[address]->disable();
-		breakpoints.erase(address);
-	}
+        it->second->disable();
+        breakpoints.erase(it);
+    }
 
-	void add_register_write(DWORD64 CONTEXT::* reg, DWORD64 value)
-	{
-		register_write_cmd cmd;
-		cmd.reg = reg;
-		cmd.value = value;
-		register_write_queue.push_back(cmd);
-	}
+    void add_register_write(DWORD64 CONTEXT::* reg, DWORD64 value)
+    {
+        register_write_cmd cmd;
+        cmd.reg = reg;
+        cmd.value = value;
+        register_write_queue.push_back(cmd);
+    }
 
-	void continue_execution(DEBUG_ACTION action)
-	{
-		std::lock_guard<std::mutex> lock(breakpoint_mutex);
-		if (breakpoint_hit)
-		{
-			user_action = action;
-			resume_cv.notify_one();
-		}
-	}
+    void continue_execution(DEBUG_ACTION action)
+    {
+        std::lock_guard<std::mutex> lock(breakpoint_mutex);
+        if (breakpoint_hit)
+        {
+            user_action = action;
+            resume_cv.notify_one();
+        }
+    }
 }

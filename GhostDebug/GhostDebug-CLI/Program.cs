@@ -58,9 +58,6 @@ namespace GhostDebug
                 Console.Write("> ");
             };
 
-            debugClient.RunCommand("attach " + suggestedPid).Wait();
-            Thread.Sleep(400);
-            debugClient.RunCommand("bp 00007FF76F4E1EE0").Wait();
 
             while (true)
             {

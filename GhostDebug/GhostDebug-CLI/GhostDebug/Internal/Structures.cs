@@ -12,7 +12,7 @@ namespace GhostDebug.Internal
         PAUSE,
         RESUME,
         STEP_OVER,
-        STEP_IN,
+        STEP_INTO,
         STEP_OUT,
         REGISTER_WRITE
     }

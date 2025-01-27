@@ -126,6 +126,6 @@ namespace GhostConnect
 
         public async Task<bool> Resume() => await ContinueExecution(EVENT_CODE.RESUME);
 
-        public async Task<bool> StepOver() => await ContinueExecution(EVENT_CODE.STEP_OVER);
+        public async Task<bool> StepInto() => await ContinueExecution(EVENT_CODE.STEP_INTO);
     }
 }

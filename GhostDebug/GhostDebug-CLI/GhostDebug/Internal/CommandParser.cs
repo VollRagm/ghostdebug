@@ -99,8 +99,8 @@ namespace GhostDebug.Internal
                     await debugClient.Resume();
                     return "";
 
-                case "s":
-                    await debugClient.StepOver();
+                case "t":
+                    await debugClient.StepInto();
                     return "";
 
                 case "rw":
@@ -116,7 +116,7 @@ namespace GhostDebug.Internal
                         "bp <symbol/address> - Set a breakpoint\n" +
                         "cl <symbol/address> - Clear a breakpoint\n" +
                         "g - Resumes execution\n" +
-                        "s - Single step one instruction\n" +
+                        "t - Step Into (single step) one instruction\n" +
                         "rw <register> <value> - Write a value into a register" +
                         "help - Display this message" +
                         "\n\n" +
