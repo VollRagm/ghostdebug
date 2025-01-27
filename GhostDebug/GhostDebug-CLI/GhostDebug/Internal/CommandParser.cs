@@ -6,25 +6,6 @@ using System.Threading.Tasks;
 
 namespace GhostDebug.Internal
 {
-    public enum EVENT_CODE
-    {
-        ADD_BREAKPOINT,
-        REMOVE_BREAKPOINT,
-        PAUSE,
-        RESUME,
-        STEP_IN,
-        STEP_OVER
-    }
-
-    public class DebugEvent
-    {
-        [JsonProperty("event")]
-        public EVENT_CODE Event { get; set; }
-
-        [JsonProperty("data")]
-        public dynamic Data { get; set; }
-    }
-
     public class CommandParser
     {
         private PipeClient debugPort;
@@ -106,11 +87,16 @@ namespace GhostDebug.Internal
                         return "Unable to clear breakpoint.";
                     return "";
 
+                case "g":
+                    debugClient.Resume();
+                    return "";
+
                 case "help":
                     return "Commands:\n" +
                         "attach <pid> - Attach to a process\n" +
                         "bp <symbol/address> - Set a breakpoint\n" +
                         "cl <symbol/address> - Clear a breakpoint\n" +
+                        "g - Resumes execution\n" +
                         "help - Display this message" +
                         "\n\n" +
                         "Info: Addresses can be provided as absolute addresses, or:\n" +

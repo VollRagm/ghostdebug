@@ -52,6 +52,7 @@
     <Compile Include="GhostDebug\Internal\Injector.cs" />
     <Compile Include="GhostDebug\Internal\MemTools.cs" />
     <Compile Include="GhostDebug\Internal\PipeClient.cs" />
+    <Compile Include="GhostDebug\Internal\Structures.cs" />
     <Compile Include="GhostDebug\Internal\Win32.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

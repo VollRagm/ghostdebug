@@ -21,6 +21,8 @@ namespace GhostConnect
         private MemTools memory;
         private Injector injector;
 
+        public event EventHandler<DebugEventArgs> BreakpointHit;
+
 
         public DebugClient()
         {
@@ -47,8 +49,22 @@ namespace GhostConnect
                 return false;
 
             debugPort.StartListening();
+            debugPort.MessageRecieved += DebugPort_MessageRecieved;
 
             return true;
+        }
+
+        private void DebugPort_MessageRecieved(object sender, PipeMessageEventArgs e)
+        {
+            var debugEvent = JsonConvert.DeserializeObject<DebugEvent>(e.Message);
+            if (debugEvent != null) {
+                switch (debugEvent.Event)
+                {
+                    case EVENT_CODE.BP_HIT:
+                        BreakpointHit?.Invoke(this, new DebugEventArgs() { Ctx = debugEvent.GetData<Context64>() });
+                        break;
+                }
+            }
         }
 
         public async Task<string> RunCommand(string command) 
@@ -82,5 +98,14 @@ namespace GhostConnect
 
             return success;
         }
+
+        private async Task<bool> ContinueExecution(EVENT_CODE code)
+        {
+            var dataPacket = new DebugEvent() { Event = code };
+            var json = JsonConvert.SerializeObject(dataPacket);
+            return await debugPort.Send(json);
+        }
+
+        public async Task<bool> Resume() => await ContinueExecution(EVENT_CODE.RESUME);
     }
 }

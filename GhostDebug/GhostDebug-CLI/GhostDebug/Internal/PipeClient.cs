@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.IO.Pipes;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+
 
 namespace GhostDebug.Internal
 {
@@ -34,10 +36,11 @@ namespace GhostDebug.Internal
 
         public void StartListening()
         {
-            Task.Run(Listen);
+            var listenThread = new Thread(ListenThread);
+            listenThread.Start();
         }
 
-        public async Task Listen()
+        public async void ListenThread()
         {
             while (true)
             {

@@ -1,6 +1,6 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
-#include "debugger.hpp"
 #include "communication.hpp"
+#include "debugger.hpp"
 #include "pipe.hpp"
 
 void attach_debugger()

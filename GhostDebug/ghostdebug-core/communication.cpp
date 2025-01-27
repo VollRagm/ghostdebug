@@ -1,17 +1,5 @@
 #include "communication.hpp"
 
-enum class EVENT_CODE
-{
-	ADD_BREAKPOINT,
-	REMOVE_BREAKPOINT,
-	PAUSE,
-	RESUME,
-	STEP_IN,
-	STEP_OVER
-
-};
-
-
 namespace communication
 {
 	void dispatch_event(json event)
@@ -36,6 +24,9 @@ namespace communication
 			case EVENT_CODE::PAUSE:
 				break;
 			case EVENT_CODE::RESUME:
+
+				debugger::continue_execution((debugger::DEBUG_ACTION)code);
+
 				break;
 			case EVENT_CODE::STEP_IN:
 				break;
@@ -54,6 +45,38 @@ namespace communication
 			json event = json::parse(message);
 			dispatch_event(event);
 		}
+	}
+
+	void breakpoint_callback(EXCEPTION_POINTERS* ex)
+	{
+		CONTEXT* ctx = ex->ContextRecord;
+		json event = {
+			{ "event", (int)EVENT_CODE::BP_HIT },
+			{ "data", {
+
+					{ "Address", (uintptr_t)ex->ExceptionRecord->ExceptionAddress },
+					{ "Rip", ctx->Rip },
+					{ "Rsp", ctx->Rsp },
+					{ "Rbp", ctx->Rbp },
+					{ "Rdi", ctx->Rdi },
+					{ "Rsi", ctx->Rsi },
+					{ "Rbx", ctx->Rbx },
+					{ "Rdx", ctx->Rdx },
+					{ "Rcx", ctx->Rcx },
+					{ "Rax", ctx->Rax },
+					{ "R8", ctx->R8 },
+					{ "R9", ctx->R9 },
+					{ "R10", ctx->R10 },
+					{ "R11", ctx->R11 },
+					{ "R12", ctx->R12 },
+					{ "R13", ctx->R13 },
+					{ "R14", ctx->R14 },
+					{ "R15", ctx->R15 },
+					{ "EFlags", ctx->EFlags }
+			} }
+		};
+
+		pipe::send(event.dump());
 	}
 
 	void start_listening()
