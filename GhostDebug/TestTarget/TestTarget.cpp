@@ -26,8 +26,6 @@ int main()
 		// Compiler optimizations must be disabled for this to be called
 		std::cout << debug_this(0xDEADC0D3, 0xEACEACEAC) << std::endl;
 
-		std::cout << "Control returned succcessfully!";
-
 		std::cin.get();
 	}
 }

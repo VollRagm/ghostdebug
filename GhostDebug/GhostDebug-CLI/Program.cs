@@ -13,14 +13,8 @@ namespace GhostDebug
     {
         static void Main(string[] args)
         {
+            Console.Title = "GhostDebug CLI";
             DebugClient debugClient = new DebugClient();
-            
-            // For testing:
-            Process.GetProcessesByName("TestTarget").ToList().ForEach(p => p.Kill());
-
-            
-            //var suggestedPid = Process.Start(Path.GetFullPath("..\\..\\..\\x64\\Release\\TestTarget.exe")).Id;
-            //Console.WriteLine($"Suggested PID for testing: {suggestedPid}");
             
             debugClient.BreakpointHit += (s, e) =>
             {
