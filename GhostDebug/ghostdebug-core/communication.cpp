@@ -31,8 +31,20 @@ namespace communication
 			case EVENT_CODE::STEP_IN:
 				break;
 			case EVENT_CODE::STEP_OVER:
+				debugger::continue_execution((debugger::DEBUG_ACTION)code);
 				break;
-		
+
+			case EVENT_CODE::REGISTER_WRITE:
+				
+				auto data = event["data"];
+				auto registerName = data["register"];
+				uintptr_t value = data["value"];
+				auto reg = util::parse_register(registerName);
+
+				if (reg == nullptr) break;
+				
+				debugger::add_register_write(reg, value);
+				break;
 		}
 	}
 

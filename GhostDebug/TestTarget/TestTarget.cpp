@@ -21,11 +21,13 @@ int main()
 	detection::CheckAll();
 
 	std::cin.get();
+	while (true)
+	{
+		// Compiler optimizations must be disabled for this to be called
+		std::cout << debug_this(0xDEADC0D3, 0xEACEACEAC) << std::endl;
 
-	// Compiler optimizations must be disabled for this to be called
-	std::cout << debug_this(0xDEADC0D3, 0xEACEACEAC) << std::endl;
+		std::cout << "Control returned succcessfully!";
 
-	std::cout << "Control returned succcessfully!";
-	MessageBoxA(NULL, "Done", "Done", MB_OK);
-	std::cin.get();
+		std::cin.get();
+	}
 }

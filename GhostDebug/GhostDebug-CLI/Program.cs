@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace GhostDebug
 {
@@ -38,6 +39,10 @@ namespace GhostDebug
                 Console.WriteLine();
                 Console.Write("> ");
             };
+
+            debugClient.RunCommand("attach " + suggestedPid).Wait();
+            Thread.Sleep(400);
+            debugClient.RunCommand("bp 00007FF76F4E1EE0").Wait();
 
             while (true)
             {

@@ -62,9 +62,17 @@ namespace GhostDebug.Internal
             {
                 case "attach":
                     if (parts.Length < 2)
-                        return "Usage: attach <pid>";
+                        return "Usage: attach <pid/process name>";
 
-                    int pid = int.Parse(parts[1]);
+                    int pid = 0;
+                    if(!int.TryParse(parts[1], out pid))
+                    {
+                        Process[] processes = Process.GetProcessesByName(parts[1]);
+                        if (processes.Length == 0)
+                            return "No processes found with that name.";
+
+                        pid = processes[0].Id;
+                    }
                     if(!debugClient.Attach(pid))
                         return "Unable to attach to target.";
 
@@ -88,7 +96,18 @@ namespace GhostDebug.Internal
                     return "";
 
                 case "g":
-                    debugClient.Resume();
+                    await debugClient.Resume();
+                    return "";
+
+                case "s":
+                    await debugClient.StepOver();
+                    return "";
+
+                case "rw":
+                    if (parts.Length < 3)
+                        return "Usage: rw <register> <value>";
+
+                    await debugClient.WriteRegister(parts[1], ulong.Parse(parts[2], System.Globalization.NumberStyles.HexNumber));
                     return "";
 
                 case "help":
@@ -97,6 +116,8 @@ namespace GhostDebug.Internal
                         "bp <symbol/address> - Set a breakpoint\n" +
                         "cl <symbol/address> - Clear a breakpoint\n" +
                         "g - Resumes execution\n" +
+                        "s - Single step one instruction\n" +
+                        "rw <register> <value> - Write a value into a register" +
                         "help - Display this message" +
                         "\n\n" +
                         "Info: Addresses can be provided as absolute addresses, or:\n" +

@@ -106,6 +106,24 @@ namespace GhostConnect
             return await debugPort.Send(json);
         }
 
+
+        public async Task<bool> WriteRegister(string register, ulong value)
+        {
+            var dataPacket = new DebugEvent()
+            {
+                Event = EVENT_CODE.REGISTER_WRITE,
+                Data = new ExpandoObject()
+            };
+            register = register.ToUpper();
+            dataPacket.Data.register = register;
+            dataPacket.Data.value = value;
+
+            var json = JsonConvert.SerializeObject(dataPacket);
+            return await debugPort.Send(json);
+        }
+
         public async Task<bool> Resume() => await ContinueExecution(EVENT_CODE.RESUME);
+
+        public async Task<bool> StepOver() => await ContinueExecution(EVENT_CODE.STEP_OVER);
     }
 }

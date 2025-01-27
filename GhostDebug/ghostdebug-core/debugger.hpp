@@ -20,4 +20,5 @@ namespace debugger
 	void add_breakpoint(uintptr_t address);
 	void remove_breakpoint(uintptr_t address);
 	void continue_execution(DEBUG_ACTION action);
+	void add_register_write(DWORD64 CONTEXT::* reg, DWORD64 value);
 }

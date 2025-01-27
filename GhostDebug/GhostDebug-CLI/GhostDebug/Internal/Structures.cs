@@ -13,7 +13,8 @@ namespace GhostDebug.Internal
         RESUME,
         STEP_OVER,
         STEP_IN,
-        STEP_OUT
+        STEP_OUT,
+        REGISTER_WRITE
     }
 
     public class DebugEvent

@@ -9,7 +9,8 @@ enum class EVENT_CODE
 	RESUME,
 	STEP_OVER,
 	STEP_IN,
-	STEP_OUT
+	STEP_OUT,
+	REGISTER_WRITE
 };
 
 #include "common.hpp"
