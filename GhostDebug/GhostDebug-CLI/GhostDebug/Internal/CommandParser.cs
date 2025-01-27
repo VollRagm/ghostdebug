@@ -83,7 +83,12 @@ namespace GhostDebug.Internal
                     if(parts.Length < 2)
                         return "Usage: bp <symbol/address>";
 
-                     if(!await debugClient.SetUnsetBreakpoint(parts[1], true))
+                    string commandList = "";
+                    if(parts.Length > 2)
+                        // combine the rest of the parts into a single string
+                        commandList = string.Join(" ", parts.Skip(2));
+
+                     if(!await debugClient.SetUnsetBreakpoint(parts[1], true, commandList))
                         return "Unable to set breakpoint.";
                     return "";
 
@@ -114,6 +119,7 @@ namespace GhostDebug.Internal
                     return "Commands:\n" +
                         "attach <pid> - Attach to a process\n" +
                         "bp <symbol/address> - Set a breakpoint\n" +
+                        "bp <symbol/address> <command list> - Set a breakpoint with automatic command execution (e.g. 'bp 1234 rw rax 0;g')\n" +
                         "cl <symbol/address> - Clear a breakpoint\n" +
                         "g - Resumes execution\n" +
                         "t - Step Into (single step) one instruction\n" +

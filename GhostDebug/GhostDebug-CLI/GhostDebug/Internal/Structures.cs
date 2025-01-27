@@ -17,6 +17,18 @@ namespace GhostDebug.Internal
         REGISTER_WRITE
     }
 
+    public class Breakpoint
+    {
+        public ulong Address { get; set; }
+        public string Command { get; set; }
+
+        public Breakpoint(ulong address, string command)
+        {
+            Address = address;
+            Command = command;
+        }
+    }
+
     public class DebugEvent
     {
         [JsonProperty("event")]

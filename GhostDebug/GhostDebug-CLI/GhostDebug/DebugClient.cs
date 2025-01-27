@@ -14,7 +14,7 @@ namespace GhostConnect
     public class DebugClient
     {
         public Process TargetProcess { get; private set; }
-        public List<ulong> Breakpoints;
+        public Dictionary<ulong, Breakpoint> Breakpoints;
 
         private CommandParser commandParser;
         private PipeClient debugPort;
@@ -23,11 +23,12 @@ namespace GhostConnect
         public Disassembler Disasm;
 
         public event EventHandler<DebugEventArgs> BreakpointHit;
+        public event EventHandler<string> AutoExecCommand;
 
 
         public DebugClient()
         {
-            Breakpoints = new List<ulong>();
+            Breakpoints = new Dictionary<ulong, Breakpoint>();
             commandParser = new CommandParser(debugPort, this);
         }
 
@@ -56,14 +57,41 @@ namespace GhostConnect
             return true;
         }
 
-        private void DebugPort_MessageRecieved(object sender, PipeMessageEventArgs e)
+        private async void DebugPort_MessageRecieved(object sender, PipeMessageEventArgs e)
         {
             var debugEvent = JsonConvert.DeserializeObject<DebugEvent>(e.Message);
             if (debugEvent != null) {
                 switch (debugEvent.Event)
                 {
                     case EVENT_CODE.BP_HIT:
-                        BreakpointHit?.Invoke(this, new DebugEventArgs() { Ctx = debugEvent.GetData<Context64>() });
+                        var data = debugEvent.GetData<Context64>();
+
+                        // check if this is an autoexec bp
+                        if (Breakpoints.ContainsKey(data.Address))
+                        {
+                            var bp = Breakpoints[data.Address];
+                            if (!string.IsNullOrEmpty(bp.Command))
+                            {
+                                AutoExecCommand?.Invoke(this, bp.Command);
+                                if (bp.Command.Contains(";"))
+                                {
+                                    var commands = bp.Command.Split(';');
+                                    foreach (var command in commands)
+                                    {
+                                        await RunCommand(command);
+                                    }
+                                }
+                                else
+                                {
+                                    await RunCommand(bp.Command);
+                                }
+                                // if the command resumes execution, don't raise the event
+                                if (bp.Command.EndsWith("g"))
+                                    return;
+                            }
+                        }
+
+                        BreakpointHit?.Invoke(this, new DebugEventArgs() { Ctx = data});
                         break;
                 }
             }
@@ -72,11 +100,11 @@ namespace GhostConnect
         public async Task<string> RunCommand(string command) 
             => await commandParser.Parse(command);
 
-        public async Task<bool> SetUnsetBreakpoint(string location, bool enable)
+        public async Task<bool> SetUnsetBreakpoint(string location, bool enable, string autoExecCommand = "")
         {
             ulong address = commandParser.SymbolToAddress(location);
 
-            bool isBreakpointActive = Breakpoints.Contains(address);
+            bool isBreakpointActive = Breakpoints.ContainsKey(address);
 
             // breakpoint already in the state requested
             if (isBreakpointActive == enable)
@@ -94,7 +122,7 @@ namespace GhostConnect
             var success = await debugPort.Send(json);
 
             if (enable)
-                Breakpoints.Add(address);
+                Breakpoints.Add(address, new Breakpoint(address, autoExecCommand));
             else
                 Breakpoints.Remove(address);
 

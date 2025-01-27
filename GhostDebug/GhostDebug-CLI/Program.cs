@@ -19,8 +19,8 @@ namespace GhostDebug
             Process.GetProcessesByName("TestTarget").ToList().ForEach(p => p.Kill());
 
             
-            var suggestedPid = Process.Start(Path.GetFullPath("..\\..\\..\\x64\\Release\\TestTarget.exe")).Id;
-            Console.WriteLine($"Suggested PID for testing: {suggestedPid}");
+            //var suggestedPid = Process.Start(Path.GetFullPath("..\\..\\..\\x64\\Release\\TestTarget.exe")).Id;
+            //Console.WriteLine($"Suggested PID for testing: {suggestedPid}");
             
             debugClient.BreakpointHit += (s, e) =>
             {
