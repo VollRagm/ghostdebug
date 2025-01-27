@@ -37,6 +37,24 @@ namespace GhostDebug
                 Console.WriteLine($"{"EFLAGS",-5}: {ctx.EFlags:X8}");
 
                 Console.WriteLine();
+
+                var instructions = debugClient.Disasm.DisassembleRegion(ctx.Address, 4, 10, out byte[] codeBytes);
+                var lines = debugClient.Disasm.DumpInstructions(instructions, codeBytes, ctx.Address, out int addressLineIndex);
+
+                for(int i = 0; i < lines.Count; i++)
+                {
+                    if (i == addressLineIndex)
+                    {
+                        ConsoleColor prev = Console.ForegroundColor;
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"> {lines[i]}");
+                        Console.ForegroundColor = prev;
+                    }
+                    else
+                        Console.WriteLine($"  {lines[i]}");
+                }
+
+                Console.WriteLine();
                 Console.Write("> ");
             };
 

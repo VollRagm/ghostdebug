@@ -20,7 +20,7 @@ namespace GhostDebug.Internal
             ProcessHandle = OpenProcess(PROCESS_ALL_ACCESS, false, proc.Id);
         }
 
-        public byte[] ReadBytes(long address, uint size)
+        public byte[] ReadBytes(ulong address, uint size)
         {
             byte[] lpBuffer = new byte[size];
             ReadProcessMemory(ProcessHandle, address, lpBuffer, size, 0);

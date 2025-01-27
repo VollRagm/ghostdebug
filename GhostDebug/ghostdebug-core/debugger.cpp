@@ -130,11 +130,17 @@ namespace debugger
 				std::unique_lock<std::mutex> lock(breakpoint_mutex);
 				auto bp = breakpoints[exception_address];
 
+				// disable breakpoint to allow inspection without int3
+				bp->disable();
+
 				// send context to client
 				communication::breakpoint_callback(exception_info);
 				breakpoint_hit = true;
 
 				resume_cv.wait(lock, [] { return user_action != DEBUG_ACTION::NONE; });
+
+				// re-enable breakpoint when inspection is complete
+				bp->enable();
 
 				auto action = user_action;
 				user_action = DEBUG_ACTION::NONE;

@@ -20,6 +20,7 @@ namespace GhostConnect
         private PipeClient debugPort;
         private MemTools memory;
         private Injector injector;
+        public Disassembler Disasm;
 
         public event EventHandler<DebugEventArgs> BreakpointHit;
 
@@ -39,6 +40,7 @@ namespace GhostConnect
 
             memory = new MemTools(TargetProcess);
             injector = new Injector(memory);
+            Disasm = new Disassembler(memory);
 
             if(!injector.InjectLoadLib("ghostdebug-core.dll"))
                 return false;

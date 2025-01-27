@@ -19,7 +19,7 @@ namespace GhostDebug.Internal
         IntPtr lpThreadAttributes, uint dwStackSize, long lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern bool ReadProcessMemory(IntPtr hProcess, long lpBaseAddress, byte[] lpBuffer, uint dwSize, uint lpNumberOfBytesRead);
+        public static extern bool ReadProcessMemory(IntPtr hProcess, ulong lpBaseAddress, byte[] lpBuffer, uint dwSize, uint lpNumberOfBytesRead);
 
         [DllImport("kernel32.dll")]
         public static extern bool WriteProcessMemory(IntPtr hProcess, long lpBaseAddress, byte[] lpBuffer, uint nSize, uint lpNumberOfBytesWritten);
