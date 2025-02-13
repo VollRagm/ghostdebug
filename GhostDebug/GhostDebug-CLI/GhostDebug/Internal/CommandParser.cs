@@ -74,14 +74,14 @@ namespace GhostDebug.Internal
                         pid = processes[0].Id;
                     }
                     if(!debugClient.Attach(pid))
-                        return "Unable to attach to target.";
+                        return "Unable to attach to target. Please make sure ghostdebug-core.dll is present in the current directory.";
 
                     return "";
 
                 case "bp":
 
                     if(parts.Length < 2)
-                        return "Usage: bp <symbol/address>";
+                        return "Usage: bp <address>";
 
                     string commandList = "";
                     if(parts.Length > 2)
@@ -89,15 +89,15 @@ namespace GhostDebug.Internal
                         commandList = string.Join(" ", parts.Skip(2));
 
                      if(!await debugClient.SetUnsetBreakpoint(parts[1], true, commandList))
-                        return "Unable to set breakpoint.";
+                        return "Breakpoint is set already, please clear it first using cl.";
                     return "";
 
                 case "cl":
                     if (parts.Length < 2)
-                        return "Usage: cl <symbol/address>";
+                        return "Usage: cl <address>";
 
                     if (!await debugClient.SetUnsetBreakpoint(parts[1], false))
-                        return "Unable to clear breakpoint.";
+                        return "Breakpoint not found.";
                     return "";
 
                 case "g":
@@ -118,9 +118,9 @@ namespace GhostDebug.Internal
                 case "help":
                     return "Commands:\n" +
                         "attach <pid> - Attach to a process\n" +
-                        "bp <symbol/address> - Set a breakpoint\n" +
-                        "bp <symbol/address> <command list> - Set a breakpoint with automatic command execution (e.g. 'bp 1234 rw rax 0;g')\n" +
-                        "cl <symbol/address> - Clear a breakpoint\n" +
+                        "bp <address> - Set a breakpoint\n" +
+                        "bp <address> <command list> - Set a breakpoint with automatic command execution (e.g. 'bp 1234 rw rax 0;g')\n" +
+                        "cl <address> - Clear a breakpoint\n" +
                         "g - Resumes execution\n" +
                         "t - Step Into (single step) one instruction\n" +
                         "rw <register> <value> - Write a value into a register" +

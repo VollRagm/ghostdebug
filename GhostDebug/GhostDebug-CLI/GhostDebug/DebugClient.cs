@@ -108,7 +108,7 @@ namespace GhostConnect
 
             // breakpoint already in the state requested
             if (isBreakpointActive == enable)
-                return true;
+                return false;
 
             var dataPacket = new DebugEvent()
             {
@@ -119,14 +119,14 @@ namespace GhostConnect
             dataPacket.Data.address = address;
             var json = JsonConvert.SerializeObject(dataPacket);
 
-            var success = await debugPort.Send(json);
+            await debugPort.Send(json);
 
             if (enable)
                 Breakpoints.Add(address, new Breakpoint(address, autoExecCommand));
             else
                 Breakpoints.Remove(address);
 
-            return success;
+            return true;
         }
 
         private async Task<bool> ContinueExecution(EVENT_CODE code)
