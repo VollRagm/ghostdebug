@@ -30,18 +30,6 @@ namespace detection
 			std::cout << "NtGlobalFlag: Debugger not detected!" << std::endl;
 	}
 
-	void CheckOutputDebugString()
-	{
-		SetLastError(0);
-		OutputDebugStringA("Checking for debugger...");
-
-		// an error will be set if there is no debugger
-		if (GetLastError() == 0)
-			std::cout << "OutputDebugString: Debugger detected!" << std::endl;
-		else
-			std::cout << "OutputDebugString: Debugger not detected!" << std::endl;
-	}
-
 	void CheckDebugBreak()
 	{
 		// get start time
@@ -143,7 +131,6 @@ namespace detection
 		CheckIsDebuggerPresent();
 		CheckRemoteDebugger();
 		CheckNtGlobalFlag();
-		CheckOutputDebugString();
 		CheckNtQueryInformationProcess();
 		CheckDebugBreak();
 		CheckCloseHandle();
