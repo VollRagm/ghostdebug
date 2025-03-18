@@ -1,7 +1,6 @@
 #pragma once
 
 #include "util.hpp"
-#include "hde64.h"
 
 namespace util
 {
@@ -33,32 +32,27 @@ namespace util
 		return nullptr;
 	}
 
-	void place_int3(uintptr_t address, std::vector<uint8_t>& originalBytes)
+	void place_int3(uintptr_t address, uint8_t* originalByte)
 	{
-		hde64s hs;
-		// Disassemble the instruction at the address to get the length of the instruction
-		hde64_disasm((void*)address, &hs);
-
 		// Store the original instruction
-		originalBytes.resize(hs.len);
-		memcpy(originalBytes.data(), (void*)address, hs.len);
+		*originalByte = ((uint8_t*)address)[0];
 
 		// Write the breakpoint
 		DWORD oldProtect;
-		VirtualProtect((void*)address, hs.len, PAGE_EXECUTE_READWRITE, &oldProtect);
+		VirtualProtect((void*)address, 0x1000, PAGE_EXECUTE_READWRITE, &oldProtect);
 		
 		((uint8_t*)address)[0] = INT3;
 
-		VirtualProtect((void*)address, hs.len, oldProtect, &oldProtect);
+		VirtualProtect((void*)address, 0x1000, oldProtect, &oldProtect);
 	}
 
-	void remove_int3(uintptr_t address, std::vector<uint8_t>& originalBytes)
+	void remove_int3(uintptr_t address, uint8_t originalByte)
 	{
 		DWORD oldProtect;
-		VirtualProtect((void*)address, originalBytes.size(), PAGE_EXECUTE_READWRITE, &oldProtect);
+		VirtualProtect((void*)address, 0x1000, PAGE_EXECUTE_READWRITE, &oldProtect);
 
-		memcpy((void*)address, originalBytes.data(), originalBytes.size());
+		((uint8_t*)address)[0] = originalByte;
 
-		VirtualProtect((void*)address, originalBytes.size(), oldProtect, &oldProtect);
+		VirtualProtect((void*)address, 0x1000, oldProtect, &oldProtect);
 	}
 }

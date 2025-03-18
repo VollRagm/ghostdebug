@@ -4,7 +4,7 @@ class breakpoint
 {
 public:
 	uintptr_t address = 0;
-	std::vector<uint8_t> original_instruction = std::vector<uint8_t>();
+    uint8_t original_byte = 0;
 	bool enabled = false;
 	bool single_step = false;
 
@@ -20,7 +20,7 @@ public:
 		if (enabled)
 			return;
 
-		util::place_int3(address, original_instruction);
+		util::place_int3(address, &original_byte);
 		enabled = true;
 	}
 
@@ -29,7 +29,7 @@ public:
 		if (!enabled)
 			return;
 
-		util::remove_int3(address, original_instruction);
+		util::remove_int3(address, original_byte);
 		enabled = false;
 	}
 };

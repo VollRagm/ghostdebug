@@ -152,7 +152,6 @@
     <ClInclude Include="common.hpp" />
     <ClInclude Include="communication.hpp" />
     <ClInclude Include="debugger.hpp" />
-    <ClInclude Include="hde64.h" />
     <ClInclude Include="pipe.hpp" />
     <ClInclude Include="util.hpp" />
   </ItemGroup>

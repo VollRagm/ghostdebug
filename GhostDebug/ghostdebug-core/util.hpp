@@ -16,7 +16,7 @@
 
 namespace util
 {
-	void place_int3(uintptr_t address, std::vector<uint8_t>& originalBytes);
-	void remove_int3(uintptr_t address, std::vector<uint8_t>& originalBytes);
+	void place_int3(uintptr_t address, uint8_t* originalByte);
+	void remove_int3(uintptr_t address, uint8_t originalByte);
 	DWORD64 CONTEXT::* parse_register(std::string registerName);
 }
