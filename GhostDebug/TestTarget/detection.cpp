@@ -20,14 +20,18 @@ namespace detection
 			std::cout << "CheckRemoteDebuggerPresent: Debugger not detected!" << std::endl;
 	}
 
-	void CheckNtGlobalFlag()
+	void CheckBeingDebugged()
 	{
-		uintptr_t peb = __readgsqword(0x60);
-		uintptr_t ntGlobalFlag = *(uintptr_t*)(peb + 0xBC);
-		if (ntGlobalFlag & 0x70)
-			std::cout << "NtGlobalFlag: Debugger detected!" << std::endl;
+#ifndef _WIN64
+		PPEB pPeb = (PPEB)__readfsdword(0x30);
+#else
+		PPEB pPeb = (PPEB)__readgsqword(0x60);
+#endif // _WIN64
+
+		if (pPeb->BeingDebugged)
+			std::cout << "BeingDebugged: Debugger detected!" << std::endl;
 		else
-			std::cout << "NtGlobalFlag: Debugger not detected!" << std::endl;
+			std::cout << "BeingDebugged: Debugger not detected!" << std::endl;
 	}
 
 	void CheckDebugBreak()
@@ -130,7 +134,7 @@ namespace detection
 	{
 		CheckIsDebuggerPresent();
 		CheckRemoteDebugger();
-		CheckNtGlobalFlag();
+		CheckBeingDebugged();
 		CheckNtQueryInformationProcess();
 		CheckDebugBreak();
 		CheckCloseHandle();
